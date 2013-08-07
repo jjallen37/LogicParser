@@ -3,8 +3,122 @@
 <body>
 <h1>Logic Parser</h1>
 This is a prototype of a propositional logic parser / rule evaluator. Valid literals are p,q,r, and s. Valid operators are ~,|,&, and =>.<br>
+<form name="myForm">
+Proposition: <input type="text" name="moodForm">
+<input type="button" value="Click" onClick="validateForm()">
+</form> 
 <script type="text/javascript" src="Peg.js"></script>
 <script type="text/javascript">
+function validateForm(){
+	var input = document.forms["myForm"]["moodForm"].value;
+	try{
+
+		//// Modus Ponens ////
+		document.write("<b>Modus Ponens</b><br>");
+		var checker = new IRuleChecker(); //// Checks rule validity
+		var mpPremises = new Array();
+		mpPremises[0] = parser.parse("p=>q");
+		mpPremises[1] = parser.parse("p");
+		var mpConclusion = parser.parse("q");
+		var mp = new IRule(mpPremises,mpConclusion);
+		//// Modus Ponens ////
+
+		//// TESTING IRuleChecker ////
+		var premises = new Array();
+		premises[0] = parser.parse("(~p)=>r");
+		premises[1] = parser.parse("(~p)");
+		var mpResult = checker.check(premises,mp);
+		if(typeof mpResult == "boolean"){
+			document.write("Not valid");
+		}else{
+			document.write(mpResult+"<br>");
+		}
+
+		//// Modus Tolens ////
+		document.write("<b>Modus Tolen</b><br>");
+		var checker = new IRuleChecker(); //// Checks rule validity
+		var mpPremises = new Array();
+		mpPremises[0] = parser.parse("p=>q");
+		mpPremises[1] = parser.parse("~q");
+		var mpConclusion = parser.parse("~p");
+		var mp = new IRule(mpPremises,mpConclusion);
+		//// Modus Ponens ////
+
+		//// TESTING IRuleChecker ////
+		var premises = new Array();
+		premises[0] = parser.parse("(~p)=>r");
+		premises[1] = parser.parse("~r");
+		var mpResult = checker.check(premises,mp);
+		if(typeof mpResult == "boolean"){
+			document.write("Not valid");
+		}else{
+			document.write(mpResult+"<br>");
+		}
+
+		document.write("<b>Hypothetical Syllogism</b><br>");
+		var checker = new IRuleChecker(); //// Checks rule validity
+		var mpPremises = new Array();
+		mpPremises[0] = parser.parse("p=>q");
+		mpPremises[1] = parser.parse("q=>r");
+		var mpConclusion = parser.parse("p=>r");
+		var mp = new IRule(mpPremises,mpConclusion);
+		//// Modus Ponens ////
+
+		//// TESTING IRuleChecker ////
+		var premises = new Array();
+		premises[0] = parser.parse("(~p)=>r");
+		premises[1] = parser.parse("r=>(p|~q)");
+		var mpResult = checker.check(premises,mp);
+		if(typeof mpResult == "boolean"){
+			document.write("Not valid");
+		}else{
+			document.write(mpResult+"<br>");
+		}
+
+		document.write("<b>Disjunctive Syllogism</b><br>");
+		var checker = new IRuleChecker(); //// Checks rule validity
+		var mpPremises = new Array();
+		mpPremises[0] = parser.parse("p|q");
+		mpPremises[1] = parser.parse("~p");
+		var mpConclusion = parser.parse("q");
+		var mp = new IRule(mpPremises,mpConclusion);
+		//// Modus Ponens ////
+
+		//// TESTING IRuleChecker ////
+		var premises = new Array();
+		premises[0] = parser.parse("(~p)|r");
+		premises[1] = parser.parse("~(~p)");
+		var mpResult = checker.check(premises,mp);
+		if(typeof mpResult == "boolean"){
+			document.write("Not valid");
+		}else{
+			document.write(mpResult+"<br>");
+		}
+
+		document.write("<b>Constructive Delimma</b><br>");
+		var checker = new IRuleChecker(); //// Checks rule validity
+		var mpPremises = new Array();
+		mpPremises[0] = parser.parse("(p=>q)&(r=>s)");
+		mpPremises[1] = parser.parse("p|r");
+		var mpConclusion = parser.parse("q|s");
+		var mp = new IRule(mpPremises,mpConclusion);
+		//// Modus Ponens ////
+
+		//// TESTING IRuleChecker ////
+		var premises = new Array();
+		premises[0] = parser.parse("(q=>~p)&(r=>(s))");
+		premises[1] = parser.parse("q|r");
+		var mpResult = checker.check(premises,mp);
+		if(typeof mpResult == "boolean"){
+			document.write("Not valid");
+		}else{
+			document.write(mpResult+"<br>");
+		}
+	}catch(err){
+		document.write("error:"+err+"<br>");
+	}
+}
+
 function ASTDisplay(){
 	this.showTree = showTree;
 	function showTree(AST){
@@ -49,8 +163,6 @@ function ASTDisplay(){
 		this.show(lit,this.indent(arg));
 	}
 }
-
-
 
 //////////// Grammar Parser Construction ///////////
 Binary = function Binary(left,op,right){
@@ -270,7 +382,7 @@ function PremiseComparer(){
 		if(rule.objName != "Literal"){
 			alert("Something went wrong...");
 		}
-		this.varMap.set(rule.toString(),unary);
+		this.varMap.set(rule.toString(),unary.expr);
 	}
 }
 
@@ -314,40 +426,72 @@ function IRuleChecker(){
 	}
 }
 
-//// Modus Ponens ////
-var checker = new IRuleChecker(); //// Checks rule validity
-var mpPremises = new Array();
-mpPremises[0] = parser.parse("~(p&q)");
-//mpPremises[1] = parser.parse("p");
-var mpConclusion = parser.parse("~p|~q");
-var mp = new IRule(mpPremises,mpConclusion);
-//// Modus Ponens ////
 
-//// TESTING IRuleChecker ////
-var premises = new Array();
-premises[0] = parser.parse("~(~q&p)");
-//premises[1] = parser.parse("p=>(r|~p)");
-var mpResult = checker.check(premises,mp);
-if(typeof mpResult == "boolean"){
-	document.write("Not valid");
-}else{
-	document.write(mpResult);
+function TruthTableGen(){
+	this.p;
+	this.q;
+	this.gen = gen;
+	function gen(AST){
+		//Premise and rule should both be the root of the AST, and therefore a Binary object.
+		document.write("Gen:"+AST+"<br>");
+		for(var p=1; p>=0; p--){
+			this.p = new Boolean(p);
+			for(var q=1; q>=0; q--){
+				this.q = new Boolean(q);
+				var result = AST.visit(this,"");
+				document.write("p:"+this.p+"	"+"q:"+this.q+"	"+result+"<br>");
+			}
+		}
+	}
+
+	this.visitBinary = visitBinary;
+	function visitBinary(bin,arg){
+		var lhs = bin.lhs.visit(this,arg);
+		if(bin.hasRhs){
+			var rhs = bin.rhs.visit(this,arg);
+			if(bin.op == "&"){
+				return ((lhs==true) && (rhs==true));
+			}else if(bin.op == "|"){
+				return ((rhs==true) || lhs==true);
+			}else if(bin.op == "=>"){
+				return (!(lhs==true) || (rhs==true));
+			}else{
+				alert("Unrecognized binop:"+bin.op);
+			}
+		}
+		return lhs;
+	}
+	this.visitUnary = visitUnary;
+	function visitUnary(unary,arg){
+		var result;
+		if(unary.isNeg){
+			result = !(unary.expr.visit(this,arg)==true);
+		}else{
+			result = unary.expr.visit(this,arg);
+		}
+		//document.write("Unary:"+unary+"  "+result+"<br>");
+		return result;
+	}
+	this.visitPropn = visitPropn;
+	function visitPropn(propn,arg){
+		return propn.propn.visit(this,arg);
+	}
+
+	this.visitLiteral = visitLiteral;
+	function visitLiteral(lit,arg){
+		var result;
+		if(lit.toString()=="p"){
+			result = this.p;
+		}else{
+			result = this.q;
+		}
+		//document.write("Literal:"+lit+"  "+result+"<br>");
+		return result;
+	}
 }
-//// TESTING IRuleChecker ////
 
-/*
-try{
-	var input = "~(~(p&q)&q)";
-	document.write("Parse input:"+input+"<br>");
-	var result = parser.parse(input);
-	document.write("Result:"+result+"<br>");
-
-	printer.showTree(result);
-}catch(err){
-	document.write("input failed error:"+err);
-}
-*/
-
+//// AST Display Tests ////
+//// AST Display Tests ////
 </script>
 </body>
 </html>
