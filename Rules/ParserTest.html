@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<body>
+<h1>Logic Parser</h1>
+This is a prototype of a propositional logic parser / rule evaluator. Valid literals are p,q,r, and s. Valid operators are ~,|,&, and =>.
+<form name="myForm">
+Propn: <input type="text" name="propn">
+<input type="button" value="Click" onClick="validateForm()">
+</form>
+<script type="text/javascript" src="Peg.js"></script>
+<script type="text/javascript">
+function ASTDisplay(){
+	this.showTree = showTree;
+	function showTree(AST){
+		document.write(AST+"<br>");
+		AST.visit(this,"");
+	}
+
+	this.show = show;
+	function show(text,arg){
+		document.write(arg+text+"<br>");
+	}
+	function indent(text){
+		return ".  "+text;
+	}
+
+	this.visitBinary = visitBinary;
+	function visitBinary(bin, arg){
+		this.show("Binary:",arg);
+		bin.lhs.visit(this,this.indent(arg));
+		if(bin.op!==""){
+			this.show(bin.op,this.indent(arg));
+			bin.rhs.visit(this,this.indent(arg));
+		}
+	}
+	this.visitUnary = visitUnary;
+	function visitUnary(unary, arg){
+		this.show("Unary:",arg);
+		if(unary.op!=="")
+			this.show(unary.op,this.indent(arg));
+		unary.expr.visit(this,this.indent(arg));
+	}
+	this.visitPropn = visitPropn;
+	function visitPropn(propn, arg){
+		this.show("Propn:",arg);
+		this.show("(",this.indent(arg));
+		propn.propn.visit(this,this.indent(arg));
+		this.show(")",this.indent(arg));
+	}
+	this.visitLiteral = visitLiteral;
+	function visitLiteral(lit, arg){
+		this.show("Literal:",arg);
+		this.show(lit,this.indent(arg));
+	}
+}
+
+
+
+//////////// Grammar Parser Construction ///////////
+function Binary(left,op,right){
+	this.lhs = left;
+	this.op = op;
+	this.rhs = right;
+	this.objName = "Binary";
+	this.hasRhs = (this.op != "");
+	this.toString = toString;
+	function toString(){
+		return this.lhs + this.op + this.rhs;
+	}
+
+	this.visit = visit;
+	function visit(v, arg){
+		return v.visitBinary(this,arg);
+	}
+}
+function Unary(op, expr){
+	this.op = op;
+	this.expr = expr;
+	this.objName = "Unary";
+	this.isNeg = isNeg;
+	function isNeg(){
+		if(this.isNeg == "~") return true;
+		else return false;
+	}
+	this.toString = toString;
+	function toString(){
+		return this.op + this.expr;
+	}
+	this.visit = visit;
+	function visit(v, arg){
+		return v.visitUnary(this,arg);
+	}
+}
+function Propn(propn){
+	this.propn = propn;
+	this.objName = "Propn";
+	this.toString = toString;
+	function toString(){
+		return "("+this.propn+")";
+	}
+
+	this.visit = visit;
+	function visit(v, arg){
+		return v.visitPropn(this,arg);
+	}
+}
+function Literal(lit){
+	this.lit = lit;
+	this.objName = "Literal";
+	this.toString = toString;
+	function toString(){
+		return this.lit;
+	}
+
+	this.visit = visit;
+	function visit(v, arg){
+		return v.visitLiteral(this,arg);
+	}
+}
+var startRule = 'start = binary;';
+var binaryRule = 'binary = (left:unary binOp:("|" / "&" / "=>") right:unary {return new Binary(left,binOp,right)}) / left:unary {return new Binary(left,"","");}';
+var unaryRule = 'unary = (unOp:"~" expr:propn {return new Unary(unOp,expr);}) / (expr:propn {return new Unary("",expr);})';
+var propnRule = 'propn = ("(" prop:binary ")" {return new Propn(prop);}) / (literal);';
+var literalRule = 'literal = lit:("p"/"q"/"r"/"s") {return new Literal(lit);}';
+var grammar = startRule + binaryRule + unaryRule + propnRule + literalRule;
+var parser = PEG.buildParser(grammar);
+//////////// Grammar Parser Construction ///////////
+
+//// AST Display Tests ////
+var printer = new ASTDisplay();
+var input = "p=>(p|q)"
+var ast = parser.parse(input);
+printer.showTree(ast);
+//// AST Display Tests ////
+
+
+//////////// Rule Construction //////////////
+function IRule(premises,conclusion){
+	this.premises = premises;
+	this.conclusion = conclusion;
+}
+
+function PremiseComparer(){
+	this.compare = compare;
+	function compare(premise,rule){
+		//Premise and rule should both be the root of the AST, and therefore a Binary object.
+		return premise.visit(this,rule);
+	}
+
+	this.visitBinary = visitBinary;
+	function visitBinary(bin,rule){
+		var lhs = bin.lhs.visit(this,rule.lhs);
+		if(rule.hasRhs){
+			if(!bin.hasRhs){
+				return false;
+			}
+			var op = (bin.op == rule.op);
+			var rhs = bin.rhs.visit(this,rule.rhs);
+			return (lhs && op && rhs);
+		}
+		return lhs;
+	}
+	this.visitUnary = visitUnary;
+	function visitUnary(unary,rule){
+		if(rule.isNeg() && !unary.isNeg()){
+			return false;
+		}if(rule.expr.objName == "Literal"){
+			return true;
+		}else if(unary.expr.objName == "Literal"){
+			return false;
+		}
+		return unary.expr.visit(this,rule.expr);
+	}
+	this.visitPropn = visitPropn;
+	function visitPropn(propn,rule){
+		return propn.propn.visit(this,rule.propn);
+	}
+	this.visitLiteral = visitLiteral;
+	function visitLiteral(lit,rule){
+		alert("Why are you here?");
+		return false;
+	}
+}
+
+function IRuleChecker(){
+	//Validates if rule applies. Returns false if not, the conclusion if so.
+	this.check = check;
+	function check(premises, rule){
+		if(premises.length != rule.premises.length){
+			return false;
+		}
+		for(var i=0; i<premises.length; i++){
+			var premiseAST = premises[i];
+			var ruleAST = rule.premises[i];
+			
+			var comparer = new PremiseComparer();
+			var compatible = comparer.compare(premiseAST,ruleAST);
+			if(compatible){
+				document.write("Premise:"+premiseAST+" is compatible with rule:"+ruleAST+"<br>");
+			}else{
+				document.write("Premise:"+premiseAST+" is not compatible with rule:"+ruleAST+"<br>");
+			}
+		}
+		return "Not done with Checker yet";
+	}
+}
+
+//// Modus Ponens ////
+var checker = new IRuleChecker(); //// Checks rule validity
+var mpPremises = new Array();
+mpPremises[0] = parser.parse("p=>q");
+mpPremises[1] = parser.parse("p");
+var mpConclusion = parser.parse("q");
+var mp = new IRule(mpPremises,mpConclusion);
+//// Modus Ponens ////
+
+//// TESTING IRuleChecker ////
+var premises = new Array();
+premises[0] = parser.parse("q=>(p)");
+premises[1] = parser.parse("q|p");
+var mpResult = checker.check(premises,mp);
+if(typeof mpResult == "boolean"){
+	document.write("Not valid");
+}else{
+	document.write(mpResult);
+}
+//// TESTING IRuleChecker ////
+
+/*
+try{
+	var input = "~(~(p&q)&q)";
+	document.write("Parse input:"+input+"<br>");
+	var result = parser.parse(input);
+	document.write("Result:"+result+"<br>");
+
+	printer.showTree(result);
+}catch(err){
+	document.write("input failed error:"+err);
+}
+*/
+
+function validateForm(){
+	var propn = document.forms["myForm"]["propnInput"].value;
+	this.validate(mo);
+}
+*/
+
+</script>
+</body>
+</html>

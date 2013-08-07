@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h1>Syllogism Tester (Beta)</h1>
+<p>To test the validity of a categorical syllogism, enter in the 3 character mood in all caps (ex. AAA, EIO, OOO, etc.), then enter in the figure (1-4).Then click the "Click" button to determine validity and the rule that violates it if applicable. To check the correctness of this tester, click the "Test All" button to generate all valid syllogistic forms"</p>
+<form name="myForm">
+Mood: <input type="text" name="moodForm">
+Figure: <input type="text" name="figureForm">
+<input type="button" value="Click" onClick="validateForm()">
+<input type="button" value="Test All" onClick="validateAll()">
+</form>
+<script>
+
+function Proposition(form, subject,predicate){
+	this.form = form;
+	this.subject = subject;
+	this.predicate = predicate;
+	
+	this.toString = toString;
+	function toString(){
+		var text = "";
+		if(this.form == "A"){
+			text = "All "+this.subject+" are "+this.predicate;
+		}else if(this.form == "E"){
+			text = "No "+this.subject+" are "+this.predicate;
+		}else if(this.form == "I"){
+			text = "Some "+this.subject+" are "+this.predicate;
+		}else if(this.form == "O"){
+			text = "Some "+this.subject+" are not "+this.predicate;
+		}else{
+			text = "Unrecognized Form"
+		}
+		return text;
+	}
+	
+	this.isNegative = isNegative;
+	function isNegative(){
+		if(this.form == "A" || this.form == "I"){
+			return false;
+		}
+		return true;
+ 	}	
+
+	this.isUniversal = isUniversal;
+	function isUniversal(){
+		if(this.form == "A" || this.form == "E"){
+			return true;
+		}
+		return false;
+ 	}	
+	
+	this.isDistributed = isDistributed;
+	function isDistributed(term){
+		if(this.isUniversal() && term == this.subject){
+			return true;
+		}
+		if(this.isNegative() && term == this.predicate){
+			return true;
+		}
+		return false;
+	}
+}
+
+function Syllogism(mood, figure){
+	this.mood = mood;
+	this.figure = Number(figure);
+	this.conclusion = new Proposition(mood[2],"S","P");
+	switch(this.figure){
+	case 1:
+		this.majorPremise = new Proposition(mood[0],"M","P");
+		this.minorPremise = new Proposition(mood[1],"S","M");
+	break;
+	case 2:
+		this.majorPremise = new Proposition(mood[0],"P","M");
+		this.minorPremise = new Proposition(mood[1],"S","M");
+	break;
+	case 3:
+		this.majorPremise = new Proposition(mood[0],"M","P");
+		this.minorPremise = new Proposition(mood[1],"M","S");
+	break;
+	case 4:
+		this.majorPremise = new Proposition(mood[0],"P","M");
+		this.minorPremise = new Proposition(mood[1],"M","S");
+	break;
+	default:
+	document.write("Incorrect syllogism figure:"+figure);
+	break;
+	}
+
+	this.toString = toString;
+	function toString(){
+		var validText = "valid";
+		if(!this.isValid(true)){
+			validText = "in"+validText;	
+		}
+		return this.majorPremise.toString()+"<br>"
+			+this.minorPremise.toString()+"<br>"
+			+this.conclusion.toString()+"<br>"
+			+this.mood+" - "+this.figure+"<br>"
+			+validText;
+	}
+
+	this.isValid = isValid;
+	function isValid(displayErr){
+		// 2
+		if(!this.isMiddleDistributed()){
+			if(displayErr){
+				document.write("Rule 2");
+			}
+			return false;
+		}
+		// 3
+		if(!this.hasConclusionDistribution()){
+			if(displayErr){
+				document.write("Rule 3");
+			}
+			return false;
+		}
+		// 4
+		if(!this.hasAtMostOneNegativePremise()){
+			if(displayErr){
+				document.write("Rule 4");
+			}
+			return false;
+		}
+		// 5
+		if(!this.negPremiseHasNegConclusion()){
+			if(displayErr){
+				document.write("Rule 5");
+			}
+			return false;
+		}
+		// 6
+		if(!this.uniPremisesHaveUniConclusion()){
+			if(displayErr){
+				document.write("Rule 6");
+			}
+			return false;
+		}
+		return true;
+	}
+
+	this.isMiddleDistributed = isMiddleDistributed;
+	function isMiddleDistributed(){
+		if(this.minorPremise.isDistributed("M")){
+			return true;
+		}
+		if(this.majorPremise.isDistributed("M")){
+			return true;
+		}
+
+		return false;
+	}
+
+	this.hasConclusionDistribution = hasConclusionDistribution;
+	function hasConclusionDistribution(){
+		if(this.conclusion.isDistributed("S")){
+			if(!this.minorPremise.isDistributed("S") && !this.majorPremise.isDistributed("S")){
+				return false;
+			}
+		}
+
+		if(this.conclusion.isDistributed("P")){
+			if(!this.minorPremise.isDistributed("P") && !this.majorPremise.isDistributed("P")){
+				return false;
+			}
+		}
+		return true;
+	}
+
+	this.hasAtMostOneNegativePremise = hasAtMostOneNegativePremise;
+	function hasAtMostOneNegativePremise(){
+		if(this.majorPremise.isNegative() && this.minorPremise.isNegative()){
+			return false;
+		}
+		return true;
+	}
+
+	this.negPremiseHasNegConclusion = negPremiseHasNegConclusion;
+	function negPremiseHasNegConclusion(){
+		if(this.conclusion.isNegative() && !(this.minorPremise.isNegative() || this.majorPremise.isNegative())){
+			return false;
+		}
+		if(!this.conclusion.isNegative() && (this.minorPremise.isNegative() || this.majorPremise.isNegative())){
+			return false;
+		} 
+		return true;
+	}
+
+	this.uniPremisesHaveUniConclusion = uniPremisesHaveUniConclusion;
+	function uniPremisesHaveUniConclusion(){
+		if(this.minorPremise.isUniversal() && this.majorPremise.isUniversal() && !this.conclusion.isUniversal()){
+			return false;
+		}
+		return true;
+	}
+}
+
+function validate(mood, figure){
+	var s = new Syllogism(mood,figure);
+	document.write("<p>"+ s.toString() + "</p>");
+}
+
+function validateForm(){
+	var mood = document.forms["myForm"]["moodForm"].value;
+	var figure = document.forms["myForm"]["figureForm"].value;
+	
+	this.validate(mood,figure);
+}
+
+function validateAll(){
+	var moods = ["A","E","I","O"];
+	var i = 1;
+	for(var w=0; w<4; w++){
+		for(var x=0; x<4; x++){
+			for(var y=0; y<4; y++){
+				for(var z=1; z<5; z++){
+					var mood = moods[w]+moods[x]+moods[y];
+					var syllogism = new Syllogism(mood,z);
+					if(syllogism.isValid(false)){
+						document.write(i+". "+mood+"-"+z+" is valid"+"<br>");
+						i++;
+					}
+				}
+			}
+		}
+	}
+}
+
+/* Tests for Syllogism
+var syllogism = new Syllogism("OEA",3);
+document.write("<p>"+syllogism.toString()+"</p>");
+syllogism = new Syllogism("AAA",1);
+document.write("<p>"+syllogism.toString()+"</p>");
+*/
+
+/*  Tests for Proposition object
+var premise = new Proposition("A","Subject","Predicate");
+document.write("<p>"+premise.toString()+"</p>");
+var premise1 = new Proposition("E","Subject","Predicate");
+document.write("<p>"+premise1.toString()+"</p>");
+var premise2 = new Proposition("I","Subject","Predicate");
+document.write("<p>"+premise2.toString()+"</p>");
+var premise3 = new Proposition("O","Subject","Predicate");
+document.write("<p>"+premise3.toString()+"</p>");
+var premise4 = new Proposition("Anything else","Subject","Predicate");
+document.write("<p>"+premise4.toString()+"</p>");
+*/
+
+
+</script>
+
+</body>
+</html>
